@@ -1,26 +1,76 @@
 import mongoose from "mongoose";
 
-// 👉 Define order schema structure
-// Orders usually link to a user and may include multiple products or a cart reference.
+// Define the schema for each ordered item
+const orderedItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product", // Reference to the Product model
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1,
+  },
+  priceAtPurchase: {
+    type: Number,
+    required: true, // Store the product price at the time of purchase
+    min: 0,
+  },
+});
 
-// Example fields you might include:
-// - userId: reference to User model (required)
-// - items: array of objects containing
-//      - productId: reference to Product model
-//      - quantity: number
-//      - price: number (store actual price at purchase time)
-// - totalAmount: number (sum of all item prices)
-// - shippingAddress: object or string
-// - paymentMethod: string (e.g., "card", "cash on delivery")
-// - paymentStatus: string (e.g., "pending", "paid", "failed")
-// - orderStatus: string (e.g., "processing", "shipped", "delivered", "cancelled")
-// - orderDate: date (default: current date)
-// - timestamps: for createdAt and updatedAt
+// Define the main Order schema
+const orderSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Reference to the User who placed the order
+      required: true,
+    },
+    items: [orderedItemSchema], // List of products purchased
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    shippingAddress: {
+      street: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String },
+      postalCode: { type: String, required: true },
+      country: { type: String, required: true },
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["credit_card", "paypal", "cod", "stripe", "bank_transfer"],
+      required: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed", "refunded"],
+      default: "pending",
+    },
+    orderStatus: {
+      type: String,
+      enum: ["processing", "shipped", "delivered", "cancelled"],
+      default: "processing",
+    },
+    orderedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    timestamps: true, // Adds createdAt and updatedAt
+  }
+);
 
-// 👉 Add pre-save middleware to calculate totalAmount if needed
+orderSchema.pre("save", function (next) {
+  this.totalAmount = this.items.reduce((sum, item) => {
+    return sum + item.quantity * item.priceAtPurchase;
+  }, 0);
+  next();
+});
 
-// 👉 Example setup:
-// const orderSchema = new mongoose.Schema({ ... }, { timestamps: true });
-
-// 👉 Export Order model
-// export default mongoose.model("Order", orderSchema);
+// Export the Order model
+export default mongoose.model("Order", orderSchema);
