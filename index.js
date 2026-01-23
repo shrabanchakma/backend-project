@@ -23,10 +23,10 @@ app.get("/", (req, res) => {
 // Connect to MongoDB
 connectDB();
 
-app.use("/api", userRouters);
-app.use("/api", productRouters);
-app.use("/api", orderRouters);
-app.use("/api", cartRouters);
+app.use("/api/user", userRouters);
+app.use("/api/product", productRouters);
+app.use("/api/order", orderRouters);
+app.use("/api/cart", cartRouters);
 app.use("/api/auth", authRouters);
 
 const port = process.env.PORT || 8000;

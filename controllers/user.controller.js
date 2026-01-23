@@ -1,8 +1,6 @@
 import User from "../models/user.model.js";
 import { z } from "zod";
-
-// Define a Zod schema for validating incoming user data
-// Example Zod Schema (user.validator.js)
+import jwt from "jsonwebtoken";
 
 export const userValidator = z.object({
   name: z.string().min(1, "Name is required"),
@@ -19,8 +17,15 @@ export const userValidator = z.object({
   hobbies: z.array(z.string()).optional(),
 });
 
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
+};
+
 // ✅ Get all users
-export const getUsers = async (req, res) => {
+export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find(); // Fetch all users from DB
     res.status(200).json(users);
@@ -31,50 +36,91 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// ✅ Get a single user by ID
-export const getUser = async (req, res) => {
+// ✅ Get Profile
+export const getProfile = async (req, res) => {
   try {
-    const userId = req.params.id;
-    const user = await User.findById(userId); // Find user by MongoDB ID
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.status(200).json(user);
+    res.status(200).json({
+      success: true,
+      data: {
+        user: req.user,
+      },
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching user", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 
-// ✅ Create a new user (with validation)
+// ✅  Create new user
 export const createUser = async (req, res) => {
   try {
-    // Validate user input using Zod
-    const parsedData = userValidator.parse(req.body);
+    const { username, email, password, role } = req.body;
 
-    // Create new user in MongoDB
-    const newUser = await User.create(parsedData);
-    res.status(201).json(newUser);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Return validation errors if input is invalid
-      return res.status(400).json({ errors: error.errors });
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }],
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message:
+          existingUser.email === email
+            ? "Email already registered"
+            : "Username already taken",
+      });
     }
-    res
-      .status(500)
-      .json({ message: "Error creating user", error: error.message });
+
+    // Create new user
+    const user = await User.create({
+      username,
+      email,
+      password,
+      role: role || "user",
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: {
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 
-// ✅ Update existing user (with validation)
+// ✅ Update user information
 export const updateUser = async (req, res) => {
   try {
-    const userId = req.params.id;
-    const parsedData = userValidator.parse(req.body); // Validate input
+    const { _id } = req.user;
+    const newData = req.body;
 
     // Update user and return updated version
-    const updatedUser = await User.findByIdAndUpdate(userId, parsedData, {
+    const updatedUser = await User.findByIdAndUpdate(_id, newData, {
       new: true,
     });
 
@@ -83,9 +129,6 @@ export const updateUser = async (req, res) => {
 
     res.status(200).json(updatedUser);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.errors });
-    }
     res
       .status(500)
       .json({ message: "Error updating user", error: error.message });
