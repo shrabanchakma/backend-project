@@ -9,7 +9,7 @@ const orderValidator = z.object({
       productId: z.string(),
       quantity: z.number().int().positive(),
       priceAtPurchase: z.number().positive(),
-    })
+    }),
   ),
   totalAmount: z.number().positive().optional(), // Will be auto-calculated if missing
   paymentMethod: z.enum([
@@ -81,7 +81,7 @@ export const createOrder = async (req, res) => {
       validatedData.totalAmount ??
       validatedData.items.reduce(
         (sum, item) => sum + item.quantity * item.priceAtPurchase,
-        0
+        0,
       );
 
     const newOrder = new Order({

@@ -1,34 +1,35 @@
 import express from "express";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 import userRouters from "./routes/user.router.js";
 import productRouters from "./routes/product.router.js";
 import orderRouters from "./routes/order.router.js";
 import cartRouters from "./routes/cart.router.js";
-dotenv.config();
+import authRouters from "./routes/auth.router.js";
+import { connectDB } from "./Config/database.js";
+import cookieParser from "cookie-parser";
 
-const port = process.env.PORT || 8000;
+dotenv.config();
 const app = express();
+
+// middleware
+app.use(cookieParser());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
   res.send("Backend is Running!");
 });
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB is Connected.");
-  })
-  .catch((error) => {
-    console.log(error);
-  });
+// Connect to MongoDB
+connectDB();
 
 app.use("/api", userRouters);
 app.use("/api", productRouters);
 app.use("/api", orderRouters);
 app.use("/api", cartRouters);
+app.use("/api/auth", authRouters);
 
+const port = process.env.PORT || 8000;
 app.listen(port, () => {
   console.log(`Server is running in http://localhost:${port}`);
 });

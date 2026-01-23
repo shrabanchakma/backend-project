@@ -74,7 +74,7 @@ export const updateProduct = async (req, res) => {
       {
         new: true,
         runValidators: true, // Run Mongoose validators on update
-      }
+      },
     );
 
     if (!updatedProduct)

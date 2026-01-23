@@ -1,32 +1,28 @@
 import mongoose from "mongoose";
-
-// Define the schema for the User model
+import bcrypt from "bcrypt";
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true }, // User's full name.
-    email: { type: String, required: true, unique: true }, // Unique email address for login.
-    age: { type: Number, required: true }, // User's age.
-
-    password: { type: String, required: true }, // Hashed password for authentication.
-
-    address: {
-      street: String,
-      city: String,
-      country: String,
-    }, // User's residential address details.
-
-    role: { type: String, enum: ["user", "admin"], default: "user" }, // User's access level/permission group.
-
-    isActive: { type: Boolean, default: true }, // Account status (true for active).
-
-    hobbies: [{ type: String }], // A list of the user's hobbies.
-
-    posts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }], // References to posts created by the user.
+    username: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt automatically.
-  }
+    timestamps: true,
+  },
 );
 
-// Export model
+// Hash password before saving / Pre-save logic/method
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Method to compare passwords
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
 export default mongoose.model("User", userSchema);

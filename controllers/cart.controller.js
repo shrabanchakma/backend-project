@@ -43,7 +43,7 @@ export const getCart = async (req, res) => {
     const cartId = req.params.id;
     const cart = await Cart.findById(cartId).populate(
       "items.productId",
-      "name price"
+      "name price",
     );
 
     if (!cart) return res.status(404).json({ message: "Cart not found" });
@@ -127,7 +127,7 @@ export const updateCart = async (req, res) => {
     const updatedCart = await Cart.findByIdAndUpdate(
       cartId,
       { $set: { items: parsedData.items } },
-      { new: true } // Return the updated document
+      { new: true }, // Return the updated document
     );
 
     if (!updatedCart)
@@ -152,7 +152,7 @@ export const clearCart = async (req, res) => {
     const clearedCart = await Cart.findByIdAndUpdate(
       cartId,
       { $set: { items: [], totalPrice: 0 } }, // Clear items and set price to zero
-      { new: true }
+      { new: true },
     );
 
     if (!clearedCart)
