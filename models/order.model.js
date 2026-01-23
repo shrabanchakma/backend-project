@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // Adds createdAt and updatedAt
-  }
+  },
 );
 
 orderSchema.pre("save", function (next) {

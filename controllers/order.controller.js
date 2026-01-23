@@ -1,95 +1,69 @@
 import Order from "../models/order.model.js";
 import { z } from "zod";
 
-// zod validation
-const orderValidator = z.object({
-  userId: z.string(),
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      quantity: z.number().int().positive(),
-      priceAtPurchase: z.number().positive(),
-    }),
-  ),
-  totalAmount: z.number().positive().optional(), // Will be auto-calculated if missing
-  paymentMethod: z.enum([
-    "credit_card",
-    "paypal",
-    "cod",
-    "stripe",
-    "bank_transfer",
-  ]),
-  shippingAddress: z.object({
-    street: z.string(),
-    city: z.string(),
-    state: z.string().optional(),
-    postalCode: z.string(),
-    country: z.string(),
-  }),
-});
-
 // 👉 Get all orders
-export const getOrders = async (req, res) => {
+export const getMyOrders = async (req, res) => {
   try {
-    const { userId } = req.query; // ?userId=abc
-    const filter = userId ? { userId } : {};
+    const userId = req.user._id;
 
-    const orders = await Order.find(filter)
-      .populate("userId")
-      .populate("items.productId");
-    res.status(200).json({ success: true, data: orders });
+    const orders = await Order.find({ userId })
+      .populate("items.productId", "name price imageUrl")
+      .sort({ createdAt: -1 }); // Newest orders first
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Failed to fetch orders",
+      message: "Error fetching your orders",
       error: error.message,
     });
   }
 };
 
 // 👉 Get single order by ID
-export const getOrder = async (req, res) => {
+export const getAllOrders = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
-      .populate("userId")
-      .populate("items.productId");
+    const orders = await Order.find()
+      .populate("userId", "username email")
+      .populate("items.productId", "name price imageUrl")
+      .sort({ createdAt: -1 });
 
-    if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Order not found" });
-    }
-
-    res.status(200).json({ success: true, data: order });
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Failed to fetch order",
+      message: "Error fetching orders",
       error: error.message,
     });
   }
 };
-
-// 👉 Create new order
+// create new order
 export const createOrder = async (req, res) => {
   try {
-    // Validate incoming data
-    const validatedData = orderValidator.parse(req.body);
+    const order = req.body;
+    const userId = req.user._id;
 
-    // Auto-calculate totalAmount if not provided
-    const totalAmount =
-      validatedData.totalAmount ??
-      validatedData.items.reduce(
-        (sum, item) => sum + item.quantity * item.priceAtPurchase,
-        0,
-      );
+    const totalAmount = order.items.reduce(
+      (sum, item) => sum + item.quantity * item.priceAtPurchase,
+      0,
+    );
 
     const newOrder = new Order({
-      ...validatedData,
+      ...order,
+      userId,
       totalAmount,
     });
 
     await newOrder.save();
+
     res.status(201).json({
       success: true,
       message: "Order created successfully",
@@ -118,20 +92,26 @@ export const updateOrder = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    const order = await Order.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedOrder = await Order.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true },
+    )
+      .populate("userId", "name email")
+      .populate("items.productId", "name");
 
-    if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Order not found" });
+    if (!updatedOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
     }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Order updated", data: order });
+    res.status(200).json({
+      success: true,
+      message: "Order updated successfully",
+      data: updatedOrder,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -140,7 +120,6 @@ export const updateOrder = async (req, res) => {
     });
   }
 };
-
 // 👉 Delete / Cancel order
 export const deleteOrder = async (req, res) => {
   try {
