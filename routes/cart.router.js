@@ -8,18 +8,18 @@ import {
   deleteCart,
   clearCart,
 } from "../controllers/cart.controller.js";
+import { authenticate, validate } from "../middleware/auth.middleware.js";
+import { cartUpdateSchema } from "../Validators/cart.validator.js";
 
 const router = express.Router();
 
-// Base CRUD Routes
-router.get("/carts", getCarts); // Get all carts (e.g., for Admin)
-router.get("/carts/:id", getCart); // Get single cart by Cart ID
-router.post("/carts", createCart); // Create new cart
-router.put("/carts/:id", updateCart); // Update cart items
-router.delete("/carts/:id", deleteCart); // Delete a cart
+router.get("/carts", authenticate, getCarts);
+router.get("/carts/:id", authenticate, getCart);
+router.post("/carts", authenticate, validate(addToCartSchema), createCart);
+router.put("/carts/:id", authenticate, validate(cartUpdateSchema), updateCart);
+router.delete("/carts/:id", authenticate, deleteCart);
 
-// Custom Routes (Recommended for user-facing actions)
-router.get("/carts/user/:userId", getUserCart); // Get cart by User ID (useful for frontends)
-router.delete("/carts/:id/clear", clearCart); // Clear all items in a specific cart
+router.get("/carts/user/:userId", getUserCart);
+router.delete("/carts/:id/clear", clearCart);
 
 export default router;

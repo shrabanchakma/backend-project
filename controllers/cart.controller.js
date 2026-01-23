@@ -82,11 +82,12 @@ export const getUserCart = async (req, res) => {
 // ✅ Create a new cart (Typically only run once per user)
 export const createCart = async (req, res) => {
   try {
-    const parsedData = cartValidator.parse(req.body);
+    const parsedData = req.body;
+    const userId = req.user._id;
 
     // Ensure only one cart per user is created
     const existingCart = await Cart.findOne({
-      userId: parsedData.userId,
+      userId,
       status: "active",
     });
     if (existingCart) {
@@ -97,8 +98,12 @@ export const createCart = async (req, res) => {
 
     // Initialize the total price (will be updated by subsequent PUT requests)
     parsedData.totalPrice = calculateTotalPrice(parsedData.items || []);
+    const cart = new Order({
+      ...parsedData,
+      userId,
+    });
 
-    const newCart = await Cart.create(parsedData);
+    const newCart = await Cart.create(cart);
     res.status(201).json(newCart);
   } catch (error) {
     if (error instanceof z.ZodError) {
