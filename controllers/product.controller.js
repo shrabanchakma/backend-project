@@ -15,12 +15,34 @@ export const productValidator = z.object({
 // ✅ Get all products
 export const getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
-    res.status(200).json(products);
+    const { category, page = 1, limit = 3 } = req.query;
+
+    const filter = {};
+    if (category) {
+      filter.category = category;
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip(skip);
+
+    const totalProducts = await Product.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalProducts / Number(limit)),
+      totalProducts,
+      data: products,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching products", error: error.message });
+    res.status(500).json({
+      message: "Error fetching products",
+      error: error.message,
+    });
   }
 };
 
@@ -40,18 +62,15 @@ export const getProduct = async (req, res) => {
   }
 };
 
-// ✅ Create a new product (with validation)
+// Add a product
 export const createProduct = async (req, res) => {
   try {
-    // Validate product input using Zod
-    const parsedData = productValidator.parse(req.body);
+    const parsedData = req.body;
 
-    // Create new product in MongoDB
     const newProduct = await Product.create(parsedData);
     res.status(201).json(newProduct);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Return validation errors if input is invalid
       return res.status(400).json({ errors: error.errors });
     }
     res

@@ -6,22 +6,34 @@ import {
   updateProduct,
   deleteProduct,
 } from "../controllers/product.controller.js";
+import {
+  authenticate,
+  authorizeAdmin,
+  validate,
+} from "../middleware/auth.middleware.js";
+import {
+  productSchema,
+  updateProductSchema,
+} from "../Validators/product.validator.js";
 
 const router = express.Router();
 
-// ✅ Get all products
-router.get("/products", getProducts);
-
-// ✅ Get a specific product by ID
-router.get("/products/:id", getProduct);
-
-// ✅ Create a new product
-router.post("/products", createProduct);
-
-// ✅ Update an existing product
-router.put("/products/:id", updateProduct);
-
-// ✅ Delete a product
-router.delete("/products/:id", deleteProduct);
+router.post(
+  "/addProduct",
+  authenticate,
+  authorizeAdmin,
+  validate(productSchema),
+  createProduct,
+);
+router.get("/allProducts", authenticate, getProducts);
+router.get("/:id", authenticate, getProduct);
+router.patch(
+  "/update/:id",
+  authenticate,
+  authorizeAdmin,
+  validate(updateProductSchema),
+  updateProduct,
+);
+router.delete("/delete/:id", authenticate, authorizeAdmin, deleteProduct);
 
 export default router;
